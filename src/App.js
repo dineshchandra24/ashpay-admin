@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, User, Wallet, Clock, TrendingUp, RefreshCw, AlertCircle, Eye, EyeOff, LogOut, Edit2, Save, X, Users, Gift, CreditCard, Calendar } from 'lucide-react';
+import { Search, CheckCircle, XCircle, User, Wallet, Clock, TrendingUp, RefreshCw, AlertCircle, Eye, EyeOff, LogOut } from 'lucide-react';
 
 const AshPayAdmin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -13,11 +13,9 @@ const AshPayAdmin = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [processingDeposit, setProcessingDeposit] = useState(null);
-  const [editingBalance, setEditingBalance] = useState(false);
-  const [newBalance, setNewBalance] = useState('');
 
   const API_BASE = 'https://ashpay-backend.onrender.com/api';
-  const ADMIN_PASSWORD = 'Dcmishra@5474'; // Change this to your secure password
+  const ADMIN_PASSWORD = 'ashpay@admin2025'; // Change this to your secure password
 
   useEffect(() => {
     const savedLogin = sessionStorage.getItem('ashpay_admin_logged_in');
@@ -54,70 +52,38 @@ const AshPayAdmin = () => {
     setError('');
     setSuccessMessage('');
     setUserData(null);
-    setEditingBalance(false);
 
     try {
-      // Get user data directly using the user ID endpoint
-      // We'll make a PUT request with empty body to trigger user fetch
-      const userResponse = await fetch(`${API_BASE}/user/${searchId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}) // Empty update to get user data
-      });
-
-      if (!userResponse.ok) {
+      // First get pending deposits
+      const pendingResponse = await fetch(`${API_BASE}/user/${searchId}/pending-deposits`);
+      
+      if (!pendingResponse.ok) {
         throw new Error('User not found');
       }
 
-      const userData = await userResponse.json();
-      const user = userData.user;
+      const pendingData = await pendingResponse.json();
 
-      // Set complete user data
+      // Then get balance and transactions
+      const balanceResponse = await fetch(`${API_BASE}/balance/${searchId}`);
+      const balanceData = await balanceResponse.json();
+
+      // Get full user data to access payment details
+      const userResponse = await fetch(`${API_BASE}/user/${searchId}`);
+      const userData = await userResponse.json();
+
+      // Combine the data
       setUserData({
-        id: user.id,
-        name: user.name,
-        mobile: user.mobile,
-        balance: user.balance,
-        transactions: user.transactions || [],
-        pendingDeposits: user.pendingDeposits || [],
-        paymentDetails: user.paymentDetails || [],
-        referrals: user.referrals || [],
-        referralCommission: user.referralCommission || 0,
-        usedReferralCode: user.usedReferralCode || null,
-        createdAt: user.createdAt || null
+        id: searchId,
+        balance: balanceData.balance,
+        transactions: balanceData.transactions || [],
+        pendingDeposits: pendingData.pendingDeposits || [],
+        paymentDetails: userData.user?.paymentDetails || []
       });
 
       setLoading(false);
     } catch (err) {
       setError(err.message || 'Failed to fetch user data');
       setLoading(false);
-    }
-  };
-
-  const updateBalance = async () => {
-    if (!newBalance || isNaN(newBalance)) {
-      setError('Please enter a valid balance');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/user/${userData.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          balance: parseFloat(newBalance)
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update balance');
-      }
-
-      setSuccessMessage('✅ Balance updated successfully!');
-      setEditingBalance(false);
-      await searchUser();
-    } catch (err) {
-      setError(err.message || 'Failed to update balance');
     }
   };
 
@@ -145,7 +111,8 @@ const AshPayAdmin = () => {
       const data = await response.json();
       setSuccessMessage(`✅ Deposit approved! New balance: ₹${data.newBalance.toFixed(2)}`);
 
-      // Refresh user data
+      // Refresh user data after a short delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       await searchUser();
       setProcessingDeposit(null);
     } catch (err) {
@@ -323,193 +290,17 @@ const AshPayAdmin = () => {
                   Refresh
                 </button>
               </div>
-              
-              {/* User Info Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/30">
                   <p className="text-gray-300 text-sm mb-1">User ID</p>
                   <p className="text-white text-2xl font-bold">{userData.id}</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30">
-                  <p className="text-gray-300 text-sm mb-1">Name</p>
-                  <p className="text-white text-xl font-bold">{userData.name}</p>
+                  <p className="text-gray-300 text-sm mb-1">Current Balance</p>
+                  <p className="text-white text-2xl font-bold">₹{userData.balance.toFixed(2)}</p>
                 </div>
-                <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/30">
-                  <p className="text-gray-300 text-sm mb-1">Mobile</p>
-                  <p className="text-white text-xl font-bold">{userData.mobile}</p>
-                </div>
-              </div>
-
-              {/* Balance Section */}
-              <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/30 mb-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-gray-300 text-sm mb-1">Current Balance</p>
-                    {editingBalance ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-white text-xl">₹</span>
-                        <input
-                          type="number"
-                          value={newBalance}
-                          onChange={(e) => setNewBalance(e.target.value)}
-                          className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-xl font-bold w-40"
-                          placeholder={userData.balance.toFixed(2)}
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-white text-3xl font-bold">₹{userData.balance.toFixed(2)}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    {editingBalance ? (
-                      <>
-                        <button
-                          onClick={updateBalance}
-                          className="px-3 py-2 bg-green-500 hover:bg-green-600 rounded-lg text-white flex items-center gap-2"
-                        >
-                          <Save className="w-4 h-4" />
-                          Save
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingBalance(false);
-                            setNewBalance('');
-                          }}
-                          className="px-3 py-2 bg-red-500 hover:bg-red-600 rounded-lg text-white flex items-center gap-2"
-                        >
-                          <X className="w-4 h-4" />
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setEditingBalance(true);
-                          setNewBalance(userData.balance.toString());
-                        }}
-                        className="px-3 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white flex items-center gap-2"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                        Edit Balance
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Info Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="w-5 h-5 text-purple-400" />
-                    <p className="text-gray-300 text-sm">Referrals</p>
-                  </div>
-                  <p className="text-white text-2xl font-bold">{userData.referrals?.length || 0}</p>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Gift className="w-5 h-5 text-green-400" />
-                    <p className="text-gray-300 text-sm">Referral Commission</p>
-                  </div>
-                  <p className="text-green-400 text-2xl font-bold">₹{userData.referralCommission?.toFixed(2) || '0.00'}</p>
-                </div>
-                {userData.usedReferralCode && (
-                  <div className="bg-white/5 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Gift className="w-5 h-5 text-blue-400" />
-                      <p className="text-gray-300 text-sm">Used Referral Code</p>
-                    </div>
-                    <p className="text-blue-400 text-xl font-bold">{userData.usedReferralCode}</p>
-                  </div>
-                )}
-                {userData.createdAt && (
-                  <div className="bg-white/5 rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-5 h-5 text-cyan-400" />
-                      <p className="text-gray-300 text-sm">Account Created</p>
-                    </div>
-                    <p className="text-white text-sm">{new Date(userData.createdAt).toLocaleDateString()}</p>
-                  </div>
-                )}
               </div>
             </div>
-
-            {/* Payment Details */}
-            {userData.paymentDetails && userData.paymentDetails.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <CreditCard className="w-6 h-6 text-blue-400" />
-                  Payment Methods ({userData.paymentDetails.length})
-                </h2>
-                <div className="space-y-3">
-                  {userData.paymentDetails.map((payment, index) => (
-                    <div key={index} className="bg-white/5 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-semibold">
-                          {payment.type}
-                        </span>
-                        <span className="text-gray-400 text-sm">
-                          Added: {new Date(payment.addedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        {payment.upiId && (
-                          <div>
-                            <p className="text-gray-400">UPI ID</p>
-                            <p className="text-white font-semibold">{payment.upiId}</p>
-                          </div>
-                        )}
-                        {payment.accountNumber && (
-                          <>
-                            <div>
-                              <p className="text-gray-400">Account Number</p>
-                              <p className="text-white font-semibold">{payment.accountNumber}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">IFSC Code</p>
-                              <p className="text-white font-semibold">{payment.ifscCode}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Bank Name</p>
-                              <p className="text-white font-semibold">{payment.bankName}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Account Holder</p>
-                              <p className="text-white font-semibold">{payment.accountHolderName}</p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Referrals List */}
-            {userData.referrals && userData.referrals.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Users className="w-6 h-6 text-purple-400" />
-                  Referred Users ({userData.referrals.length})
-                </h2>
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {userData.referrals.map((referral, index) => (
-                    <div key={index} className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-white font-semibold">{referral.name}</p>
-                          <p className="text-gray-400 text-sm">ID: {referral.id}</p>
-                        </div>
-                        <p className="text-gray-400 text-sm">
-                          {new Date(referral.date).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Pending Deposits */}
             {userData.pendingDeposits.length > 0 && (
@@ -579,6 +370,62 @@ const AshPayAdmin = () => {
                 </div>
               </div>
             )}
+
+            {/* Saved Payment Methods */}
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Wallet className="w-6 h-6 text-cyan-400" />
+                Saved Payment Methods
+              </h2>
+              {userData.paymentDetails && userData.paymentDetails.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {userData.paymentDetails.map((detail, index) => (
+                    <div key={detail.id || index} className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="bg-cyan-500/20 px-3 py-1 rounded-lg">
+                          <p className="text-cyan-300 text-xs font-semibold uppercase">
+                            {detail.type === 'bank' ? 'Bank Account' : 'UPI'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {detail.type === 'bank' ? (
+                        <div className="space-y-2">
+                          <div>
+                            <p className="text-gray-400 text-xs">Account Holder</p>
+                            <p className="text-white text-sm font-semibold">{detail.accountName}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-400 text-xs">Account Number</p>
+                            <p className="text-white text-sm font-mono font-semibold">{detail.accountNumber}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-gray-400 text-xs">IFSC Code</p>
+                              <p className="text-white text-sm font-semibold">{detail.ifsc}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400 text-xs">Bank Name</p>
+                              <p className="text-white text-sm font-semibold">{detail.bankName}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-gray-400 text-xs mb-1">UPI ID</p>
+                          <p className="text-white text-sm font-mono font-semibold break-all">{detail.upiId}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-300">No payment methods saved</p>
+                </div>
+              )}
+            </div>
 
             {/* Transaction History */}
             <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
