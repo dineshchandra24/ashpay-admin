@@ -15,7 +15,7 @@ const AshPayAdmin = () => {
   const [processingDeposit, setProcessingDeposit] = useState(null);
 
   const API_BASE = 'https://ashpay-backend.onrender.com/api';
-  const ADMIN_PASSWORD = 'ashpay@admin2025'; // Change this to your secure password
+  const ADMIN_PASSWORD = 'Dcmishra@5474'; // Change this to your secure password
 
   useEffect(() => {
     const savedLogin = sessionStorage.getItem('ashpay_admin_logged_in');
