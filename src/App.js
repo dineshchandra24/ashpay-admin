@@ -39,7 +39,7 @@ const AshPayAdmin = () => {
   const [processingAddBalance, setProcessingAddBalance] = useState(false);
 
   const API_BASE = 'https://ashpay-backend.onrender.com/api';
-  const ADMIN_PASSWORD = 'ashpay@admin2025';
+  const ADMIN_PASSWORD = 'Dcmishra@5474';
 
   useEffect(() => {
     const savedLogin = sessionStorage.getItem('ashpay_admin_logged_in');
